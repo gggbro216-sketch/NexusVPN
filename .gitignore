@@ -1,0 +1,21 @@
+# Godot
+.godot/
+*.translation
+export_credentials.cfg
+.import/
+
+# Build outputs
+build/
+*.apk
+*.aab
+*.idsig
+android/.gradle/
+android/build/
+android/local.properties
+android/nexus_vpn_bridge/build/
+android/nexus_vpn_bridge/libs/
+android/build_template/
+
+# Keystores
+*.keystore
+*.jks

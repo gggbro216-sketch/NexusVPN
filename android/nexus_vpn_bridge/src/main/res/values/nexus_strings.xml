@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nexus_channel_vpn">VPN</string>
+    <string name="nexus_channel_alerts">Уведомления VPN</string>
+    <string name="nexus_notif_connecting">Подключение…</string>
+    <string name="nexus_notif_connected">VPN подключён</string>
+    <string name="nexus_notif_stop">Отключить</string>
+    <string name="nexus_notif_stopped_error">VPN остановлен из-за ошибки</string>
+</resources>
