@@ -25,6 +25,7 @@ func _ready() -> void:
 	var filter := OS.get_environment("NEXUS_TEST_FILTER")
 	var total := 0
 	var failed := 0
+	var skipped_count := 0
 	var files := DirAccess.get_files_at(TEST_DIR)
 	files.sort()
 	for f in files:
@@ -35,6 +36,7 @@ func _ready() -> void:
 		var script: GDScript = load(TEST_DIR + "/" + f)
 		if script == null or not script.can_instantiate():
 			print("FAIL  %s: could not load script" % f)
+			total += 1
 			failed += 1
 			continue
 		var inst: TestCase = script.new()
@@ -47,8 +49,12 @@ func _ready() -> void:
 			total += 1
 			inst.current_test = "%s::%s" % [f.get_basename(), name]
 			var before := inst.failures.size()
+			var before_skip := inst.skipped.size()
 			await inst.call(name)
-			if inst.failures.size() > before:
+			if inst.skipped.size() > before_skip and inst.failures.size() == before:
+				skipped_count += 1
+				print("SKIP  %s (%s)" % [inst.current_test, inst.skipped[-1].split(": ", true, 1)[1]])
+			elif inst.failures.size() > before:
 				failed += 1
 				print("FAIL  " + inst.current_test)
 				for i in range(before, inst.failures.size()):
@@ -57,7 +63,7 @@ func _ready() -> void:
 				print("ok    " + inst.current_test)
 		if inst.has_method("teardown"):
 			await inst.teardown()
-	print("\n%d tests, %d failed" % [total, failed])
+	print("\n%d tests, %d passed, %d failed, %d skipped" % [total, total - failed - skipped_count, failed, skipped_count])
 	get_tree().quit(1 if failed > 0 else 0)
 
 

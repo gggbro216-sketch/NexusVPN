@@ -3,7 +3,13 @@ extends RefCounted
 ## Minimal assertion helpers for the headless test runner (tests/run_tests.gd).
 
 var failures: PackedStringArray = []
+var skipped: PackedStringArray = []
 var current_test := ""
+
+
+## Marks the current test as skipped (reported separately, never as passed).
+func skip(reason: String) -> void:
+	skipped.append("%s: %s" % [current_test, reason])
 
 
 func check(cond: bool, msg: String) -> bool:

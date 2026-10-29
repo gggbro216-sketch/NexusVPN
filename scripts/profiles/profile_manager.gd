@@ -68,7 +68,8 @@ func reset_storage() -> void:
 	for p in [storage_path, storage_path + ".bak", storage_path + ".tmp"]:
 		if FileAccess.file_exists(p):
 			DirAccess.remove_absolute(p)
-	SecureStorage.reset()
+	if storage_path == ProfileStorage.DEFAULT_PATH:
+		SecureStorage.reset()
 	load_from_disk()
 
 

@@ -12,6 +12,10 @@ const MAX_REDIRECTS := 5
 const TIMEOUT_S := 25.0
 const RESOLVE_TIMEOUT_MS := 8000
 
+## Test hook ONLY: lets the automated tests reach a local fixture server.
+## Never set by application code.
+static var allow_private_for_tests := false
+
 
 ## Returns "" if the URL may be fetched, else the reason.
 static func validate_url(url: String, allow_http: bool) -> String:
@@ -32,6 +36,8 @@ static func validate_url(url: String, allow_http: bool) -> String:
 	if not str(p.userinfo).is_empty():
 		return "адреса с логином в URL не поддерживаются"
 	var h := str(p.host).to_lower()
+	if allow_private_for_tests:
+		return ""
 	if h == "localhost" or h.ends_with(".localhost") or h.ends_with(".local") or h.ends_with(".internal") or h.ends_with(".lan"):
 		return "обращение к локальным адресам запрещено"
 	if h.is_valid_ip_address() and is_private_ip(h):
@@ -146,7 +152,7 @@ func _check_resolved(host: String) -> String:
 	if addrs.is_empty():
 		return "не удалось разрешить имя сервера"
 	for a in addrs:
-		if is_private_ip(a):
+		if is_private_ip(a) and not allow_private_for_tests:
 			return "имя сервера указывает на локальный адрес (%s) — запрос заблокирован" % a
 	return ""
 

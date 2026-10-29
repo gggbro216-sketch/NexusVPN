@@ -67,6 +67,7 @@ func add(url: String, name: String = "", interval_h: int = -1) -> Dictionary:
 		"last_error": "",
 		"count": 0,
 		"user_info": {},
+		"name_user_set": name.strip_edges() != "",
 	}
 	Profiles.subscriptions.append(sub)
 	Profiles.notify_subscriptions_changed()

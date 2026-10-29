@@ -79,9 +79,7 @@ static func parse(raw: String) -> Dictionary:
 
 
 static func strip_bom(s: String) -> String:
-	if s.begins_with("﻿"):
-		return s.substr(1)
-	return s
+	return s.replace(char(0xFEFF), "")
 
 
 static func detect(text: String) -> Format:

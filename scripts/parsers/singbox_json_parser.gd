@@ -76,7 +76,11 @@ static func parse(text: String) -> Dictionary:
 			continue
 		res.profiles.append(r.profile)
 		res.warnings.append_array(r.warnings)
-	if res.profiles.is_empty() and not res.is_full_config:
+	var has_tun := false
+	for ib in (res.config.get("inbounds", []) if res.is_full_config else []):
+		if typeof(ib) == TYPE_DICTIONARY and ib.get("type", "") == "tun":
+			has_tun = true
+	if res.profiles.is_empty() and not has_tun:
 		res.error = "no supported servers found" + ("" if res.warnings.is_empty() else ": " + res.warnings[0])
 		return res
 	res.ok = true
