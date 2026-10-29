@@ -163,5 +163,11 @@ func protocol_label() -> String:
 	return base
 
 
+## True when the profile disables TLS certificate verification.
+func is_insecure_tls() -> bool:
+	var tls: Variant = outbound.get("tls", {})
+	return typeof(tls) == TYPE_DICTIONARY and bool(tls.get("insecure", false))
+
+
 func latency_status() -> String:
 	return str(latency.get("status", LAT_UNTESTED))

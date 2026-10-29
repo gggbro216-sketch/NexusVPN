@@ -85,6 +85,7 @@ static func build_vpn_config(profile: ProfileModel, settings: Dictionary) -> Dic
 	var server := profile.outbound.duplicate(true)
 	server["tag"] = SERVER_TAG
 	server["type"] = profile.protocol
+	apply_tls_fragment(server, str(settings.get("tls_fragment", "off")))
 	var outbounds := [
 		{"type": "selector", "tag": PROXY_TAG, "outbounds": [SERVER_TAG], "default": SERVER_TAG},
 		{"type": "direct", "tag": DIRECT_TAG},
@@ -145,6 +146,8 @@ static func build_test_config(profiles: Array, settings: Dictionary) -> Dictiona
 			res.skipped[prof.id] = err
 			continue
 		var ob := prof.outbound.duplicate(true)
+		ob["type"] = prof.protocol
+		apply_tls_fragment(ob, str(settings.get("tls_fragment", "off")))
 		var tag := "test-%d" % i
 		i += 1
 		ob["tag"] = tag
@@ -174,6 +177,38 @@ static func build_test_config(profiles: Array, settings: Dictionary) -> Dictiona
 	res.config = config
 	res.ok = true
 	return res
+
+
+## Protocols whose TLS runs over QUIC: no TCP handshake to fragment.
+const QUIC_PROTOCOLS := ["hysteria2", "hysteria", "tuic"]
+
+
+## Returns true when TLS ClientHello fragmentation can apply to [param ob]:
+## TCP-based TLS only. REALITY builds its own uTLS connection and does not use
+## sing-box's fragmenter (common/tls/reality_client.go), QUIC has no TCP stream.
+static func tls_fragment_applicable(ob: Dictionary) -> bool:
+	var tls: Variant = ob.get("tls", {})
+	if typeof(tls) != TYPE_DICTIONARY or not tls.get("enabled", false):
+		return false
+	if typeof(tls.get("reality", {})) == TYPE_DICTIONARY and tls.get("reality", {}).get("enabled", false):
+		return false
+	if str(ob.get("type", "")) in QUIC_PROTOCOLS:
+		return false
+	var tr: Variant = ob.get("transport", {})
+	if typeof(tr) == TYPE_DICTIONARY and str(tr.get("type", "")) == "quic":
+		return false
+	return true
+
+
+## Sets sing-box tls.fragment / tls.record_fragment according to [param mode].
+static func apply_tls_fragment(ob: Dictionary, mode: String) -> void:
+	if mode == "off" or not tls_fragment_applicable(ob):
+		return
+	var tls: Dictionary = ob.tls
+	if mode in ["record", "both"]:
+		tls["record_fragment"] = true
+	if mode in ["tcp", "both"]:
+		tls["fragment"] = true
 
 
 ## Basic structural checks before handing the outbound to the core.

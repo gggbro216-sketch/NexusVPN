@@ -82,11 +82,13 @@ func _write(name: String, data: Dictionary) -> void:
 
 ## Parses [param link], builds the client config, runs it and fetches via it.
 ## Returns "" on success, else the reason.
-func _through(link: String, port: int) -> String:
+func _through(link: String, port: int, overrides: Dictionary = {}) -> String:
 	var r := LinkParser.parse(link)
 	if not r.ok:
 		return "parse: " + r.error
-	var built := ConfigBuilder.build_test_config([r.profile], Settings.DEFAULTS.duplicate(true))
+	var settings := Settings.DEFAULTS.duplicate(true)
+	settings.merge(overrides, true)
+	var built := ConfigBuilder.build_test_config([r.profile], settings)
 	if not built.ok:
 		return "build: " + built.error
 	var cfg: Dictionary = built.config
@@ -106,11 +108,11 @@ func _through(link: String, port: int) -> String:
 	return ""
 
 
-func _run(label: String, link: String, port: int) -> void:
+func _run(label: String, link: String, port: int, overrides: Dictionary = {}) -> void:
 	if not _ok:
 		skip("NEXUS_SINGBOX_BIN/openssl/curl/python3 not available")
 		return
-	var err := await _through(link, port)
+	var err := await _through(link, port, overrides)
 	check(err == "", "%s: %s" % [label, err])
 
 
@@ -124,6 +126,10 @@ func test_vless_reality_vision() -> void:
 
 func test_trojan_tls() -> void:
 	await _run("trojan", "trojan://pw@127.0.0.1:21003?sni=test.local&allowInsecure=1#t", 21203)
+
+
+func test_trojan_tls_with_fragmentation() -> void:
+	await _run("trojan+fragment", "trojan://pw@127.0.0.1:21003?sni=test.local&allowInsecure=1#tf", 21213, {"tls_fragment": "both"})
 
 
 func test_vmess_ws() -> void:

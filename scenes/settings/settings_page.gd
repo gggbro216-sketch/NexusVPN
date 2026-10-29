@@ -100,6 +100,13 @@ func _network() -> void:
 		_reconnect_hint(),
 	])
 	_card([
+		UI.option_row("Фрагментация TLS (обход DPI)",
+			"Разбивает TLS ClientHello, чтобы простые фильтры не распознали имя сервера. Сначала пробуйте «записи TLS»: TCP-фрагментация медленнее.",
+			"tls_fragment", [["off", "Выключена"], ["record", "Записи TLS (record_fragment)"], ["tcp", "TCP-сегменты (fragment)"], ["both", "Оба способа"]]),
+		_note("Действует только для TLS поверх TCP (VLESS/VMess/Trojan/AnyTLS с TLS). Не влияет на REALITY (ядро не применяет фрагментацию к REALITY), Hysteria2, TUIC и QUIC. Против полноценной цензуры не гарантирует результат."),
+		_reconnect_hint(),
+	])
+	_card([
 		UI.toggle_row("Определять внешний IP", "После подключения запросить адрес у сервиса ниже (через VPN)", "ip_check_enabled"),
 		UI.text_row("Сервис проверки IP", "Формат ответа Cloudflare trace (ip=…, loc=…) или просто IP", "ip_check_url", "https://…",
 			func(v: String) -> String: return "" if v.begins_with("https://") else "нужен адрес https://"),

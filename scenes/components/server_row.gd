@@ -62,6 +62,8 @@ func update_from(p: ProfileModel, active: bool) -> void:
 	var flag := UI.flag(p.exit_country)
 	_name.text = ("%s %s" % [flag, p.name]).strip_edges()
 	var parts := PackedStringArray([p.protocol_label()])
+	if p.is_insecure_tls():
+		parts[0] = "⚠ без проверки TLS · " + parts[0]
 	if p.protocol != "config":
 		parts.append(p.display_address())
 	if p.subscription_id != "":

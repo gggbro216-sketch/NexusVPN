@@ -200,3 +200,35 @@ func test_dns_parsing() -> void:
 	eq(named.server.domain_resolver, "local")
 	check(not DnsManager.build_server("dns.google", "local").ok, "direct DNS by name would need itself")
 	check(not DnsManager.build_server("gopher://x", "r").ok, "bad scheme")
+
+
+func test_tls_fragment() -> void:
+	var tls_p: ProfileModel = LinkParser.parse("vless://%s@t.example.com:443?security=tls&type=ws&path=/w#t" % UUID).profile
+	var reality_p: ProfileModel = LinkParser.parse("vless://%s@r.example.com:443?security=reality&sni=a.com&pbk=%s&flow=xtls-rprx-vision#r" % [UUID, PBK]).profile
+	var hy_p: ProfileModel = LinkParser.parse("hysteria2://pw@h.example.com:443#h").profile
+	var plain_p: ProfileModel = LinkParser.parse("vless://%s@p.example.com:443#p" % UUID).profile
+	for mode in ["record", "tcp", "both"]:
+		var b := ConfigBuilder.build_vpn_config(tls_p, _settings({"tls_fragment": mode}))
+		var tls: Dictionary = b.config.outbounds[1].tls
+		eq(tls.get("record_fragment", false), mode in ["record", "both"], mode + " record")
+		eq(tls.get("fragment", false), mode in ["tcp", "both"], mode + " tcp")
+		if _bin != "":
+			var err := _core_check("frag_" + mode, b.config)
+			check(err == "", "sing-box rejected fragment mode %s: %s" % [mode, err])
+	for p in [reality_p, hy_p, plain_p]:
+		var b := ConfigBuilder.build_vpn_config(p, _settings({"tls_fragment": "both"}))
+		var ob: Dictionary = b.config.outbounds[1]
+		var tls: Dictionary = ob.get("tls", {})
+		check(not tls.has("fragment") and not tls.has("record_fragment"), "%s must not get fragment options" % p.name)
+	var off := ConfigBuilder.build_vpn_config(tls_p, _settings())
+	check(not off.config.outbounds[1].tls.has("record_fragment"), "off by default")
+	check(not tls_p.outbound.tls.has("record_fragment"), "profile itself is not modified")
+	var t := ConfigBuilder.build_test_config([tls_p], _settings({"tls_fragment": "record"}))
+	eq(t.config.outbounds[0].tls.record_fragment, true, "latency tests use the same TLS settings")
+	if _bin == "":
+		skip("NEXUS_SINGBOX_BIN not set: core validation skipped")
+
+
+func test_insecure_flag() -> void:
+	check(LinkParser.parse("trojan://pw@a.example.com:443?allowInsecure=1#a").profile.is_insecure_tls(), "insecure detected")
+	check(not LinkParser.parse("trojan://pw@a.example.com:443#a").profile.is_insecure_tls(), "secure by default")

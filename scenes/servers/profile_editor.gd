@@ -47,6 +47,10 @@ func _build() -> void:
 		h.add_child(v)
 		b.add_child(h)
 	_body.add_child(info)
+	if _p.is_insecure_tls():
+		var warn := UI.label("⚠ Проверка TLS-сертификата отключена ссылкой (allowInsecure/insecure). Соединение можно перехватить без видимых ошибок. Включить проверку: «Показать секреты» → удалить \"insecure\": true → «Сохранить».", "CaptionLabel", true)
+		warn.add_theme_color_override("font_color", Style.c("warning"))
+		_body.add_child(warn)
 
 	_body.add_child(UI.section("Название"))
 	_name = LineEdit.new()

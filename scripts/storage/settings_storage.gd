@@ -14,6 +14,7 @@ const PER_APP_MODES := ["off", "include", "exclude"]
 const TUN_STACKS := ["mixed", "system", "gvisor"]
 const DNS_STRATEGIES := ["prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"]
 const CORE_LOG_LEVELS := ["trace", "debug", "info", "warn", "error"]
+const TLS_FRAGMENT_MODES := ["off", "record", "tcp", "both"]
 
 const DEFAULTS := {
 	# Connection
@@ -34,6 +35,9 @@ const DEFAULTS := {
 	"url_test_timeout_s": 8,
 	"ip_check_enabled": true,
 	"ip_check_url": "https://www.cloudflare.com/cdn-cgi/trace",
+	# Anti-DPI: "off" | "record" (TLS record fragmentation) | "tcp" (TCP segment
+	# fragmentation of the ClientHello) | "both". Applies to TCP+TLS only.
+	"tls_fragment": "off",
 	# DNS
 	"remote_dns": "https://1.1.1.1/dns-query",
 	"direct_dns": "local",

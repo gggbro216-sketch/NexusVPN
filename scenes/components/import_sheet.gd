@@ -68,10 +68,50 @@ static func import_text(text: String, source: String) -> Dictionary:
 		if Profiles.get_active() == null or res.added.size() == 1:
 			Profiles.set_active(first)
 	_show_summary(res)
+	await _review_insecure(res.added)
 	if res.is_full_config:
 		await _offer_full_config(res.config)
 	Bus.import_finished.emit(res)
 	return res
+
+
+## Asks what to do with imported servers whose links disable TLS certificate
+## verification (allowInsecure / insecure=1). Such a connection can be
+## intercepted (MITM) without any visible error.
+static func _review_insecure(ids: Array) -> void:
+	var insecure: Array[ProfileModel] = []
+	for id in ids:
+		var p := Profiles.get_profile(id)
+		if p and p.is_insecure_tls():
+			insecure.append(p)
+	if insecure.is_empty():
+		return
+	var names := PackedStringArray()
+	for p in insecure.slice(0, 5):
+		names.append("• " + p.name)
+	if insecure.size() > 5:
+		names.append("… и ещё %d" % (insecure.size() - 5))
+	var choice := await Nav.choose("Проверка сертификата отключена (%d)" % insecure.size(), [
+		["keep", "Оставить как в ссылке (небезопасно)", "warning"],
+		["verify", "Включить проверку сертификата", "lock"],
+		["remove", "Не добавлять эти серверы", "delete", true],
+	])
+	Log.warn("import", "insecure TLS servers: %s; decision: %s" % [", ".join(names), choice if choice != "" else "keep (dismissed)"])
+	match choice:
+		"verify":
+			for p in insecure:
+				var c := ProfileModel.from_dict(p.to_dict())
+				c.outbound.tls.erase("insecure")
+				Profiles.update_profile(c)
+			Nav.toast("Проверка сертификата включена. Если сервер использует самоподписанный сертификат, подключение не пройдёт.", "info")
+		"remove":
+			var rm := []
+			for p in insecure:
+				rm.append(p.id)
+			Profiles.remove_many(rm)
+			Nav.toast("Серверы без проверки сертификата не добавлены", "info")
+		_:
+			Nav.toast("Серверы без проверки сертификата помечены значком ⚠", "warning")
 
 
 static func _show_summary(res: Dictionary) -> void:
