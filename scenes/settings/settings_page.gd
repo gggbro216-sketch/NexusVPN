@@ -300,6 +300,7 @@ func _about() -> void:
 	var rows := [
 		["Приложение", "%s %s" % [App.app_name(), App.app_version()]],
 		["Ядро", ("sing-box " + SingBoxManager.core_version()) if SingBoxManager.is_available() else "недоступно на этой платформе"],
+		["Второе ядро", ("Xray " + SingBoxManager.backend.xray_version()) if SingBoxManager.is_available() and SingBoxManager.backend.xray_version() != "" else "Xray (для XHTTP), недоступно на этой платформе"],
 		["Движок", "Godot " + Engine.get_version_info().string],
 		["Платформа", OS.get_name() + " " + OS.get_version()],
 	]
@@ -316,6 +317,7 @@ func _about() -> void:
 		UI.label("Лицензии", "HeaderLabel"),
 		_note("%s распространяется под GPL-3.0-or-later." % App.app_name()),
 		_note("sing-box (libbox) — © SagerNet, GPL-3.0-or-later. Исходный код: github.com/SagerNet/sing-box"),
+		_note("Xray-core — © XTLS, Mozilla Public License 2.0. Исходный код: github.com/XTLS/Xray-core"),
 		_note("Godot Engine — © Godot Engine contributors, MIT License."),
 		_note("ZXing — Apache License 2.0. Google ML Kit code scanner — условия Google APIs."),
 		_note("Иконки — Material Design Icons (Google), Apache License 2.0."),

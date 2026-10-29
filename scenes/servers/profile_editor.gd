@@ -176,6 +176,11 @@ func _validate() -> void:
 		if core_err != "":
 			_show_result(false, "ядро: " + core_err)
 			return
+		if not built.xray_config.is_empty():
+			var xerr := SingBoxManager.backend.check_xray_config(JsonUtil.stringify(built.xray_config))
+			if xerr != "":
+				_show_result(false, "Xray: " + xerr)
+				return
 		_show_result(true, "Конфигурация принята ядром sing-box %s" % SingBoxManager.core_version())
 	else:
 		_show_result(true, "Структура корректна (проверка ядром доступна на Android)")

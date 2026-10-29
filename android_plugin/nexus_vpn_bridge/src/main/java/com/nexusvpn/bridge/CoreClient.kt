@@ -76,12 +76,16 @@ object CoreClient {
      * Runs [config] (outbounds only, no TUN) in this process and URL-tests all
      * members of [group]. [done] receives JSON {ok, error, items: {tag: delay_ms or -1}}.
      */
-    fun runLatencySession(config: String, group: String, timeoutMs: Long, done: (String) -> Unit) {
+    fun runLatencySession(config: String, xrayConfig: String, group: String, timeoutMs: Long, done: (String) -> Unit) {
         BoxCore.executor.execute {
             val result = JSONObject().put("ok", false).put("error", "").put("items", JSONObject())
             latencySessionActive = true
             try {
                 synchronized(groupResults) { groupResults.clear() }
+                if (xrayConfig.isNotEmpty()) {
+                    val xerr = BoxCore.startXray(xrayConfig, "test", null)
+                    if (xerr.isNotEmpty()) throw IllegalStateException(xerr)
+                }
                 BoxCore.startServer(config)
                 connect()
                 val begin = System.currentTimeMillis() - 1000
@@ -116,6 +120,7 @@ object CoreClient {
             } finally {
                 disconnect()
                 BoxCore.closeServer()
+                BoxCore.stopXray()
                 latencySessionActive = false
             }
             done(result.toString())

@@ -6,7 +6,7 @@ extends Node
 ## and every VPN feature reports itself as unavailable instead of being faked.
 
 const SINGLETON := "NexusVpnBridge"
-const EXPECTED_BRIDGE_API := 1
+const EXPECTED_BRIDGE_API := 2
 
 var bridge: Object = null
 var bridge_error := ""

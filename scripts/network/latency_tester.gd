@@ -144,7 +144,8 @@ func _proxy_session(batch: Array) -> Dictionary:
 	var result := [null]
 	var cb := func(r: Dictionary) -> void: result[0] = r
 	backend.latency_session_finished.connect(cb, CONNECT_ONE_SHOT)
-	var err := backend.start_latency_session(json, ConfigBuilder.TEST_GROUP_TAG, SESSION_TIMEOUT_MS)
+	var xray_json := "" if built.xray_config.is_empty() else JsonUtil.stringify(built.xray_config)
+	var err := backend.start_latency_session(json, xray_json, ConfigBuilder.TEST_GROUP_TAG, SESSION_TIMEOUT_MS)
 	if err != "":
 		if backend.latency_session_finished.is_connected(cb):
 			backend.latency_session_finished.disconnect(cb)

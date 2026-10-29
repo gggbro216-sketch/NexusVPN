@@ -41,8 +41,16 @@ func request_permission() -> void:
 	bridge.requestVpnPermission()
 
 
-func start(json: String, profile_id: String, profile_name: String) -> String:
-	return str(bridge.startVpn(json, profile_id, profile_name))
+func start(json: String, xray_json: String, profile_id: String, profile_name: String) -> String:
+	return str(bridge.startVpn(json, xray_json, profile_id, profile_name))
+
+
+func check_xray_config(json: String) -> String:
+	return str(bridge.checkXrayConfig(json))
+
+
+func xray_version() -> String:
+	return str(bridge.getXrayVersion())
 
 
 func stop() -> void:
@@ -60,8 +68,8 @@ func url_test(group: String) -> String:
 	return str(bridge.urlTest(group))
 
 
-func start_latency_session(json: String, group: String, timeout_ms: int) -> String:
-	return str(bridge.startLatencySession(json, group, timeout_ms))
+func start_latency_session(json: String, xray_json: String, group: String, timeout_ms: int) -> String:
+	return str(bridge.startLatencySession(json, xray_json, group, timeout_ms))
 
 
 func reset_network() -> void:

@@ -50,6 +50,56 @@ object BoxCore {
 
     private var server: CommandServer? = null
 
+    /** Xray child process of the current session (null if the profile runs on sing-box). */
+    @Volatile var xray: XrayProcess? = null
+        private set
+    private val pendingLogs = ArrayList<Pair<Int, String>>()
+
+    /** Local ports of the Xray inbounds declared in [config] (XrayBridge layout). */
+    fun xrayPorts(config: String): List<Int> = runCatching {
+        val arr = org.json.JSONObject(config).getJSONArray("inbounds")
+        (0 until arr.length()).map { arr.getJSONObject(it).getInt("port") }
+    }.getOrDefault(emptyList())
+
+    /**
+     * Starts Xray for this session. Its log lines go into the core log stream
+     * (visible in the app's diagnostics); [onExit] fires if it dies unexpectedly.
+     * Returns "" or an error.
+     */
+    fun startXray(config: String, name: String, onExit: ((String) -> Unit)?): String {
+        stopXray()
+        val x = XrayProcess(appContext, name)
+        x.onLog = { level, line -> coreLog(level, line) }
+        x.onUnexpectedExit = onExit
+        val err = x.start(config, xrayPorts(config))
+        if (err.isEmpty()) xray = x
+        return err
+    }
+
+    fun stopXray() {
+        xray?.stop()
+        xray = null
+    }
+
+    /** Writes into sing-box's log stream (buffered until the core runs). */
+    fun coreLog(level: Int, message: String) {
+        val srv = server
+        if (srv == null) {
+            synchronized(pendingLogs) {
+                pendingLogs.add(level to message)
+                if (pendingLogs.size > 200) pendingLogs.removeAt(0)
+            }
+            return
+        }
+        runCatching { srv.writeMessage(level, message) }
+    }
+
+    private fun flushLogs() {
+        val srv = server ?: return
+        val items = synchronized(pendingLogs) { ArrayList(pendingLogs).also { pendingLogs.clear() } }
+        for ((level, msg) in items) runCatching { srv.writeMessage(level, msg) }
+    }
+
     @Synchronized
     fun init(context: Context, source: String) {
         if (setupDone) return
@@ -92,6 +142,7 @@ object BoxCore {
         server = srv
         try {
             srv.startOrReloadService(config, override)
+            flushLogs()
         } catch (e: Exception) {
             closeServer()
             throw e

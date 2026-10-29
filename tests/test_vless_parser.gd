@@ -76,9 +76,47 @@ func test_httpupgrade() -> void:
 		eq(r.profile.outbound.transport, {"type": "httpupgrade", "path": "/up", "host": "x.com"})
 
 
-func test_xhttp_is_rejected_clearly() -> void:
-	err_result(VlessParser.parse("vless://%s@h.example.com:443?type=xhttp&security=tls&path=/x&mode=auto" % UUID), "xhttp")
-	err_result(VlessParser.parse("vless://%s@h.example.com:443?type=splithttp" % UUID), "xhttp")
+func test_xhttp_goes_to_xray() -> void:
+	var r := VlessParser.parse("vless://%s@h.example.com:443?type=xhttp&security=tls&sni=h.example.com&path=%%2Fx&mode=packet-up&extra=%%7B%%22xPaddingBytes%%22%%3A%%22100-1000%%22%%7D#XH" % UUID)
+	if not ok_result(r):
+		return
+	var p: ProfileModel = r.profile
+	eq(p.engine, "xray")
+	eq(p.server, "h.example.com")
+	var ss: Dictionary = p.outbound.streamSettings
+	eq(ss.network, "xhttp")
+	eq(ss.xhttpSettings.path, "/x")
+	eq(ss.xhttpSettings.mode, "packet-up")
+	eq(ss.xhttpSettings.extra, {"xPaddingBytes": "100-1000"})
+	eq(ss.tlsSettings.serverName, "h.example.com")
+	eq(p.outbound.settings.vnext[0].users[0].id, UUID)
+	check(p.protocol_label().contains("Xray"), "label shows the engine")
+	ok_result(VlessParser.parse("vless://%s@h.example.com:443?type=splithttp&path=/s" % UUID), "splithttp alias")
+	err_result(VlessParser.parse("vless://%s@h.example.com:443?type=xhttp&mode=weird" % UUID), "mode")
+	err_result(VlessParser.parse("vless://%s@h.example.com:443?type=xhttp&extra=notjson" % UUID), "extra")
+	err_result(VlessParser.parse("vless://%s@h.example.com:443?type=kcp" % UUID), "kcp")
+
+
+func test_vless_encryption_goes_to_xray() -> void:
+	var r := VlessParser.parse("vless://%s@e.example.com:443?type=tcp&security=reality&sni=a.com&pbk=%s&sid=ab&pqv=XYZ&encryption=mlkem768x25519plus.native.0rtt.KEY#E" % [UUID, PBK])
+	if not ok_result(r):
+		return
+	eq(r.profile.engine, "xray")
+	eq(r.profile.outbound.settings.vnext[0].users[0].encryption, "mlkem768x25519plus.native.0rtt.KEY")
+	eq(r.profile.outbound.streamSettings.realitySettings.mldsa65Verify, "XYZ", "pqv honoured by Xray")
+
+
+func test_xray_certificate_pinning() -> void:
+	var pin := "AB:CD:".repeat(16).trim_suffix(":")
+	var r := VlessParser.parse("vless://%s@h.example.com:443?type=xhttp&security=tls&pcs=%s&allowInsecure=1#P" % [UUID, pin])
+	if ok_result(r):
+		eq(r.profile.outbound.streamSettings.tlsSettings.pinnedPeerCertSha256, pin)
+		check(not r.profile.outbound.streamSettings.tlsSettings.has("allowInsecure"), "allowInsecure never emitted for Xray")
+	err_result(VlessParser.parse("vless://%s@h.example.com:443?type=xhttp&security=tls&pcs=1234" % UUID), "pcs")
+	var w := VlessParser.parse("vless://%s@h.example.com:443?type=xhttp&security=tls&allowInsecure=1#W" % UUID)
+	if ok_result(w):
+		check(str(w.warnings).contains("verified"), "user is told the certificate will be verified")
+		check(not w.profile.is_insecure_tls(), "not marked insecure: Xray verifies")
 
 
 func test_missing_port() -> void:
@@ -138,7 +176,6 @@ func test_unknown_params_are_warnings() -> void:
 
 
 func test_unsupported_critical_params() -> void:
-	err_result(VlessParser.parse("vless://%s@e.com:443?encryption=mlkem768x25519plus.native.0rtt.abc" % UUID), "encryption")
 	err_result(VlessParser.parse("vless://%s@e.com:443?flow=xtls-rprx-direct&security=tls" % UUID), "flow")
 	err_result(VlessParser.parse("vless://%s@e.com:443?security=xtls" % UUID), "xtls")
 	err_result(VlessParser.parse("vless://%s@e.com:443?type=tcp&headerType=http" % UUID), "header")

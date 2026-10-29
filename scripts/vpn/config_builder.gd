@@ -21,10 +21,11 @@ const TUN_INET4 := "172.19.0.1/30"
 const TUN_INET6 := "fdfe:dcba:9876::1/126"
 
 
-## Returns {ok, error, config: Dictionary, warnings: PackedStringArray}.
+## Returns {ok, error, config: Dictionary, warnings: PackedStringArray,
+##          xray_config: Dictionary (empty unless the profile runs on Xray)}.
 ## [param settings] is Settings.export_data() (passed in to keep this testable).
 static func build_vpn_config(profile: ProfileModel, settings: Dictionary) -> Dictionary:
-	var res := {"ok": false, "error": "", "config": {}, "warnings": PackedStringArray()}
+	var res := {"ok": false, "error": "", "config": {}, "warnings": PackedStringArray(), "xray_config": {}}
 	if profile == null:
 		res.error = "профиль не выбран"
 		return res
@@ -82,10 +83,18 @@ static func build_vpn_config(profile: ProfileModel, settings: Dictionary) -> Dic
 	elif per_app == "exclude" and not packages.is_empty():
 		tun["exclude_package"] = packages.duplicate()
 
-	var server := profile.outbound.duplicate(true)
-	server["tag"] = SERVER_TAG
-	server["type"] = profile.protocol
-	apply_tls_fragment(server, str(settings.get("tls_fragment", "off")))
+	var server: Dictionary
+	var xray_session := {}
+	if profile.engine == "xray":
+		# XHTTP / VLESS encryption: sing-box forwards to a local Xray process.
+		xray_session = XrayBridge.new_session(1)
+		server = XrayBridge.singbox_outbound(xray_session, 0, SERVER_TAG)
+		res.xray_config = XrayBridge.xray_config(xray_session, [profile.outbound], _xray_log_level(settings))
+	else:
+		server = profile.outbound.duplicate(true)
+		server["tag"] = SERVER_TAG
+		server["type"] = profile.protocol
+		apply_tls_fragment(server, str(settings.get("tls_fragment", "off")))
 	var outbounds := [
 		{"type": "selector", "tag": PROXY_TAG, "outbounds": [SERVER_TAG], "default": SERVER_TAG},
 		{"type": "direct", "tag": DIRECT_TAG},
@@ -119,6 +128,9 @@ static func build_vpn_config(profile: ProfileModel, settings: Dictionary) -> Dic
 	}
 	if endpoints.size() > 0:
 		config["endpoints"] = endpoints
+	if not xray_session.is_empty():
+		config.inbounds.append(XrayBridge.singbox_dial_inbound(xray_session))
+		config.route.rules.insert(0, XrayBridge.singbox_dial_rule())
 	if routing.rule_sets.size() > 0:
 		config.route["rule_set"] = routing.rule_sets
 	if config.dns.rules.is_empty():
@@ -131,11 +143,17 @@ static func build_vpn_config(profile: ProfileModel, settings: Dictionary) -> Dic
 ## Config for measuring real proxy latency of several profiles without a TUN.
 ## Returns {ok, error, config, tags: Dictionary(tag -> profile_id), skipped: Dictionary(profile_id -> reason)}.
 static func build_test_config(profiles: Array, settings: Dictionary) -> Dictionary:
-	var res := {"ok": false, "error": "", "config": {}, "tags": {}, "skipped": {}}
+	var res := {"ok": false, "error": "", "config": {}, "tags": {}, "skipped": {}, "xray_config": {}}
 	var outbounds := []
 	var endpoints := []
 	var tags := []
 	var i := 0
+	var xray_profiles: Array[ProfileModel] = []
+	for p in profiles:
+		if (p as ProfileModel).engine == "xray" and validate_outbound(p) == "":
+			xray_profiles.append(p)
+	var xray_session := XrayBridge.new_session(xray_profiles.size()) if xray_profiles.size() > 0 else {}
+	var xray_outbounds := []
 	for p in profiles:
 		var prof: ProfileModel = p
 		if prof.protocol == "config":
@@ -145,13 +163,17 @@ static func build_test_config(profiles: Array, settings: Dictionary) -> Dictiona
 		if err != "":
 			res.skipped[prof.id] = err
 			continue
-		var ob := prof.outbound.duplicate(true)
-		ob["type"] = prof.protocol
-		apply_tls_fragment(ob, str(settings.get("tls_fragment", "off")))
 		var tag := "test-%d" % i
 		i += 1
-		ob["tag"] = tag
-		ob["type"] = prof.protocol
+		var ob: Dictionary
+		if prof.engine == "xray":
+			ob = XrayBridge.singbox_outbound(xray_session, xray_outbounds.size(), tag)
+			xray_outbounds.append(prof.outbound)
+		else:
+			ob = prof.outbound.duplicate(true)
+			ob["type"] = prof.protocol
+			apply_tls_fragment(ob, str(settings.get("tls_fragment", "off")))
+			ob["tag"] = tag
 		if prof.is_endpoint:
 			endpoints.append(ob)
 		else:
@@ -174,6 +196,10 @@ static func build_test_config(profiles: Array, settings: Dictionary) -> Dictiona
 	}
 	if endpoints.size() > 0:
 		config["endpoints"] = endpoints
+	if xray_outbounds.size() > 0:
+		config["inbounds"] = [XrayBridge.singbox_dial_inbound(xray_session)]
+		config.route["rules"] = [XrayBridge.singbox_dial_rule()]
+		res.xray_config = XrayBridge.xray_config(xray_session, xray_outbounds)
 	res.config = config
 	res.ok = true
 	return res
@@ -216,6 +242,13 @@ static func validate_outbound(profile: ProfileModel) -> String:
 	var o := profile.outbound
 	if typeof(o) != TYPE_DICTIONARY or o.is_empty():
 		return "у профиля нет параметров подключения"
+	if profile.engine == "xray":
+		var vn: Variant = o.get("settings", {}).get("vnext", [])
+		if str(o.get("protocol", "")) != "vless" or typeof(vn) != TYPE_ARRAY or vn.is_empty():
+			return "некорректный outbound Xray"
+		if typeof(o.get("streamSettings")) != TYPE_DICTIONARY:
+			return "outbound Xray без streamSettings"
+		return ""
 	var t := profile.protocol
 	if not (t in SingBoxJsonParser.PROXY_TYPES) and not (t in SingBoxJsonParser.ENDPOINT_TYPES):
 		return "протокол «%s» не поддерживается ядром этой сборки" % t
@@ -247,6 +280,10 @@ static func _use_full_config(profile: ProfileModel, _settings: Dictionary) -> Di
 	res.config = cfg
 	res.ok = true
 	return res
+
+
+static func _xray_log_level(settings: Dictionary) -> String:
+	return {"trace": "debug", "debug": "debug", "info": "info", "warn": "warning", "error": "error"}.get(str(settings.get("core_log_level", "warn")), "warning")
 
 
 static func _core_log_level(settings: Dictionary) -> String:

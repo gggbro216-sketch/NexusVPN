@@ -46,7 +46,16 @@ func request_permission() -> void:
 	permission_result.emit(granted_on_request)
 
 
-func start(_json: String, profile_id: String, profile_name: String) -> String:
+var last_xray_json := ""
+
+
+func check_xray_config(_json: String) -> String:
+	calls.append("check_xray")
+	return ""
+
+
+func start(_json: String, xray_json: String, profile_id: String, profile_name: String) -> String:
+	last_xray_json = xray_json
 	calls.append("start")
 	if start_error != "":
 		return start_error

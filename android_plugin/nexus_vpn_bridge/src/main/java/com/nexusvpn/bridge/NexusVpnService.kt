@@ -34,6 +34,8 @@ class NexusVpnService : VpnService() {
         const val EXTRA_PROFILE_NAME = "profile_name"
 
         fun configFile(context: Context) = File(context.filesDir, "nexus_active_config.json")
+        /** Xray config of the active profile; absent when it runs on sing-box only. */
+        fun xrayConfigFile(context: Context) = File(context.filesDir, "nexus_active_xray.json")
         private fun metaFile(context: Context) = File(context.filesDir, "nexus_active_profile.txt")
 
         fun saveMeta(context: Context, id: String, name: String) {
@@ -109,7 +111,14 @@ class NexusVpnService : VpnService() {
                 // Let the network callback deliver the underlying network first,
                 // otherwise the core starts with "missing default interface".
                 NetworkMonitor.awaitNetwork(3000)
-                try {
+                val xrayCfg = xrayConfigFile(this)
+                if (xrayCfg.exists()) {
+                    // Xray first: sing-box forwards the profile's traffic to it.
+                    err = BoxCore.startXray(runCatching { xrayCfg.readText() }.getOrDefault(""), "vpn") { reason ->
+                        stopVpn(reason)
+                    }
+                }
+                if (err.isEmpty()) try {
                     BoxCore.startServer(config, OverrideOptions())
                 } catch (e: Exception) {
                     err = e.message ?: e.toString()
@@ -117,6 +126,7 @@ class NexusVpnService : VpnService() {
             }
             if (err.isNotEmpty()) {
                 Log.e(TAG, "core start failed: $err")
+                BoxCore.stopXray()
                 closeTun()
                 BoxCore.vpnService = null
                 startedAt = 0
@@ -188,6 +198,7 @@ class NexusVpnService : VpnService() {
             publish(BoxCore.STOPPING)
             closeTun()
             BoxCore.closeServer()
+            BoxCore.stopXray()
             BoxCore.vpnService = null
             startedAt = 0
             publish(BoxCore.STOPPED, reason)
@@ -206,6 +217,7 @@ class NexusVpnService : VpnService() {
             BoxCore.executor.execute {
                 closeTun()
                 BoxCore.closeServer()
+                BoxCore.stopXray()
                 BoxCore.vpnService = null
                 if (state != BoxCore.STOPPED) {
                     startedAt = 0

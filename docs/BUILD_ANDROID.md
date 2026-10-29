@@ -33,6 +33,7 @@ export/android/java_sdk_path    = "/path/to/jdk-17"
 ```bash
 export ANDROID_HOME=/path/to/Android/Sdk JAVA_HOME=/path/to/jdk-17
 tools/build_libbox.sh            # клонирует sing-box v1.14.4, проверяет commit, собирает build/libbox/libbox.aar (~15 мин)
+tools/build_xray.sh              # Xray-core v26.10.21 → android_plugin/.../jniLibs/<abi>/libxray.so (Go 1.27, NDK 28)
 tools/build_android_plugin.sh    # Kotlin-плагин → addons/android_vpn_bridge/bin/, обновляет SHA256SUMS
 ```
 Готового Android-плагина sing-box для Godot не существует — плагин написан в этом проекте (`android_plugin/`).
@@ -58,7 +59,7 @@ tools/build_apk.sh release    # build/NexusVPN-release.apk
 ```bash
 adb install -r build/NexusVPN-debug.apk
 ```
-Размер (arm64 + armv7, сжатые библиотеки): debug ~109 МБ, release ~93 МБ. Для меньшего файла отключите `architectures/armeabi-v7a` в `export_presets.cfg` (только 64-битные устройства).
+Размер (arm64 + armv7, сжатые библиотеки): release ~117 МБ (включая Xray ~2×33 МБ). Для меньшего файла отключите `architectures/armeabi-v7a` в `export_presets.cfg` (только 64-битные устройства).
 
 ## Разрешения
 | Разрешение | Зачем |

@@ -18,11 +18,12 @@ NEXUS_SINGBOX_BIN=/path/to/sing-box-1.14.4 tools/run_tests.sh
 | `test_profile_storage.gd` | шифрование (нет открытого текста в файле), неверный ключ без порчи файла, восстановление из `.bak`, повреждённый/отсутствующий файл, миграция схемы, CRUD/дубликаты/поиск/порядок/резервная копия | 6 |
 | `test_config_validation.gd` | все протоколы и режимы (global/split/selected/direct/custom, реклама, IPv4-only, приложения, DNS DoT/DoH3, стеки) → `sing-box check`; ядро отклоняет битый REALITY-ключ; ошибки настроек; конфликты правил; DNS | 7 |
 | `test_e2e_proxy.gd` | реальные серверы sing-box на 127.0.0.1 ← клиент из ссылки → curl: VLESS TCP, **VLESS REALITY Vision**, Trojan TLS, VMess WS, SS2022, Hysteria2, TUIC, AnyTLS, VLESS gRPC, VLESS HTTPUpgrade; неверные пароль/UUID **не** пропускают трафик | 11 |
+| `test_e2e_xray.gd` | цепочка sing-box → Xray с настоящими серверами Xray 26.10.21: XHTTP, XHTTP+TLS (pcs), XHTTP+REALITY, VLESS ML-KEM; отказ при неверном UUID и незакреплённом самоподписанном сертификате; аутентификация локальных прокси, `xray run -test` | 7 |
 | `test_vpn_manager.gd` | машина состояний на тестовом бэкенде: подключение с проверкой, повторный запуск, отказ в разрешении, выдача разрешения, недоступный сервер, сбой запуска ядра, некорректная конфигурация, автопереподключение, ограничение попыток, отзыв VPN системой, потеря сети, перезапуск интерфейса при работающем VPN, отмена во время запроса разрешения, нет профиля | 13 |
 
 ### Результат последнего прогона (Linux, Godot 4.7.2, sing-box 1.14.4)
 ```
-89 tests, 89 passed, 0 failed, 0 skipped
+102 tests, 102 passed, 0 failed, 0 skipped   (NEXUS_SINGBOX_BIN + NEXUS_XRAY_BIN)
 ```
 
 ### Ошибки, найденные тестами и исправленные

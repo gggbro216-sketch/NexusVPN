@@ -190,6 +190,10 @@ func validate_profile(profile_id: String) -> Dictionary:
 		var err := backend.check_config(JsonUtil.stringify(built.config))
 		if err != "":
 			return {"ok": false, "error": "ядро отклонило конфигурацию: " + err, "warnings": built.warnings}
+		if not built.xray_config.is_empty():
+			var xerr := backend.check_xray_config(JsonUtil.stringify(built.xray_config))
+			if xerr != "":
+				return {"ok": false, "error": "Xray отклонил конфигурацию: " + xerr, "warnings": built.warnings}
 	return {"ok": true, "error": "", "warnings": built.warnings}
 
 
@@ -232,6 +236,11 @@ func _connect_flow(profile: ProfileModel, is_reconnect: bool) -> Dictionary:
 	var check := backend.check_config(json)
 	if check != "":
 		return _fail(op, "ядро отклонило конфигурацию: " + check)
+	var xray_json := "" if built.xray_config.is_empty() else JsonUtil.stringify(built.xray_config)
+	if xray_json != "":
+		var xcheck := backend.check_xray_config(xray_json)
+		if xcheck != "":
+			return _fail(op, "Xray отклонил конфигурацию: " + xcheck)
 	if op != _op:
 		return {"ok": false, "error": "отменено"}
 
@@ -249,7 +258,7 @@ func _connect_flow(profile: ProfileModel, is_reconnect: bool) -> Dictionary:
 	# (Without this the previous STOPPED state ended the wait immediately.)
 	_core_state = VpnState.Core.STARTING
 	_core_message = ""
-	var err := backend.start(json, profile.id, profile.name)
+	var err := backend.start(json, xray_json, profile.id, profile.name)
 	if err != "":
 		return _fail(op, err)
 	var r := await _wait_core([VpnState.Core.STARTED, VpnState.Core.STOPPED], START_TIMEOUT_S, op)

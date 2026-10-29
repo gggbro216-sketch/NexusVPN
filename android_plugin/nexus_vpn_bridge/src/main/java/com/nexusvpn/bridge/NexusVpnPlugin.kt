@@ -34,7 +34,7 @@ import java.util.concurrent.Executors
 class NexusVpnPlugin(godot: Godot) : GodotPlugin(godot), CoreClient.Listener {
     companion object {
         private const val TAG = "NexusVpnPlugin"
-        const val API_VERSION = 1
+        const val API_VERSION = 2
         private const val REQ_VPN = 0x4E01
         private const val REQ_PICK_FILE = 0x4E02
         private const val REQ_SAVE_FILE = 0x4E03
@@ -156,6 +156,26 @@ class NexusVpnPlugin(godot: Godot) : GodotPlugin(godot), CoreClient.Listener {
     @UsedByGodot
     fun checkConfig(config: String): String = BoxCore.checkConfig(config)
 
+    /** Validates an Xray config with the bundled Xray binary. Returns "" or the error. */
+    @UsedByGodot
+    fun checkXrayConfig(config: String): String {
+        val ctx = activity ?: return "no activity"
+        return XrayProcess.check(ctx, config)
+    }
+
+    @UsedByGodot
+    fun getXrayVersion(): String {
+        val ctx = activity ?: return ""
+        val bin = XrayProcess.binary(ctx)
+        if (!bin.canExecute()) return ""
+        return runCatching {
+            val p = ProcessBuilder(bin.path, "version").redirectErrorStream(true).start()
+            val out = p.inputStream.bufferedReader().readLine() ?: ""
+            p.waitFor()
+            out.split(" ").getOrElse(1) { "" }
+        }.getOrDefault("")
+    }
+
     @UsedByGodot
     fun getCoreInfo(): String {
         val ctx = activity ?: return JSONObject().put("state", BoxCore.STOPPED).toString()
@@ -188,12 +208,14 @@ class NexusVpnPlugin(godot: Godot) : GodotPlugin(godot), CoreClient.Listener {
 
     /** Writes the config and starts [NexusVpnService]. Returns "" or an error. */
     @UsedByGodot
-    fun startVpn(config: String, profileId: String, profileName: String): String {
+    fun startVpn(config: String, xrayConfig: String, profileId: String, profileName: String): String {
         val act = activity ?: return "no activity"
         if (VpnService.prepare(act) != null) return "VPN permission is not granted"
         if (CoreClient.latencySessionActive) return "server test in progress, try again in a few seconds"
         return try {
             NexusVpnService.configFile(act).writeText(config)
+            val xf = NexusVpnService.xrayConfigFile(act)
+            if (xrayConfig.isEmpty()) xf.delete() else xf.writeText(xrayConfig)
             NexusVpnService.saveMeta(act, profileId, profileName)
             val intent = Intent(act, NexusVpnService::class.java)
                 .setAction(NexusVpnService.ACTION_START)
@@ -229,11 +251,11 @@ class NexusVpnPlugin(godot: Godot) : GodotPlugin(godot), CoreClient.Listener {
     fun urlTest(group: String): String = CoreClient.urlTest(group)
 
     @UsedByGodot
-    fun startLatencySession(config: String, group: String, timeoutMs: Int): String {
+    fun startLatencySession(config: String, xrayConfig: String, group: String, timeoutMs: Int): String {
         val act = activity ?: return "no activity"
         if (CoreState.read(act).optInt("state") != BoxCore.STOPPED) return "VPN is running"
         if (CoreClient.latencySessionActive) return "a test is already running"
-        CoreClient.runLatencySession(config, group, timeoutMs.toLong()) { json -> emit("latency_result", json) }
+        CoreClient.runLatencySession(config, xrayConfig, group, timeoutMs.toLong()) { json -> emit("latency_result", json) }
         return ""
     }
 

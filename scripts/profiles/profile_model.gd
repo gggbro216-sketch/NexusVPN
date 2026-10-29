@@ -33,6 +33,9 @@ var subscription_id: String = ""
 var uri: String = ""                ## original share link (secret!)
 var outbound: Dictionary = {}       ## sing-box outbound/endpoint options without "tag"
 var is_endpoint: bool = false       ## true for WireGuard (sing-box "endpoints" section)
+## Core that runs the outbound: "singbox" (outbound = sing-box options) or
+## "xray" (outbound = Xray-core outbound JSON; used for XHTTP / VLESS encryption).
+var engine: String = "singbox"
 var favorite: bool = false
 var order: int = 0
 var user_renamed: bool = false
@@ -48,7 +51,7 @@ var extra: Dictionary = {}
 
 const _FIELDS := ["id", "name", "protocol", "server", "port", "source", "created_at", "updated_at",
 	"subscription_id", "uri", "outbound", "is_endpoint", "favorite", "order", "user_renamed",
-	"notes", "transport_label", "latency", "exit_country", "exit_ip_checked_at"]
+	"notes", "transport_label", "latency", "exit_country", "exit_ip_checked_at", "engine"]
 
 
 static func create(p_protocol: String, p_outbound: Dictionary, p_name: String = "") -> ProfileModel:
@@ -131,6 +134,9 @@ func fingerprint() -> String:
 			parts.append(str(o[k]))
 	if o.has("transport"):
 		parts.append(JsonUtil.stringify(o.transport))
+	if engine == "xray":
+		parts.append(JsonUtil.stringify(o.get("streamSettings", {})))
+		parts.append(JsonUtil.stringify(o.get("settings", {})))
 	if o.has("tls") and typeof(o.tls) == TYPE_DICTIONARY:
 		parts.append(str(o.tls.get("server_name", "")).to_lower())
 	if protocol == "wireguard":
@@ -158,6 +164,8 @@ func protocol_label() -> String:
 		"hysteria": "Hysteria", "naive": "Naive",
 	}
 	var base: String = names.get(protocol, protocol.to_upper())
+	if engine == "xray":
+		base += " (Xray)"
 	if not transport_label.is_empty():
 		return "%s · %s" % [base, transport_label]
 	return base
@@ -165,8 +173,21 @@ func protocol_label() -> String:
 
 ## True when the profile disables TLS certificate verification.
 func is_insecure_tls() -> bool:
+	if engine == "xray":
+		var tls_x: Variant = outbound.get("streamSettings", {}).get("tlsSettings", {})
+		return typeof(tls_x) == TYPE_DICTIONARY and bool(tls_x.get("allowInsecure", false))
 	var tls: Variant = outbound.get("tls", {})
 	return typeof(tls) == TYPE_DICTIONARY and bool(tls.get("insecure", false))
+
+
+## Re-enables certificate verification (removes the link's insecure flag).
+func enable_tls_verification() -> void:
+	if engine == "xray":
+		var ss: Dictionary = outbound.get("streamSettings", {})
+		if typeof(ss.get("tlsSettings")) == TYPE_DICTIONARY:
+			ss.tlsSettings.erase("allowInsecure")
+	elif typeof(outbound.get("tls")) == TYPE_DICTIONARY:
+		outbound.tls.erase("insecure")
 
 
 func latency_status() -> String:

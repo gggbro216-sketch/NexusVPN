@@ -27,6 +27,20 @@ static func parse(link: String) -> Dictionary:
 	var q: Dictionary = u.query
 	var warnings := PackedStringArray()
 
+	if XrayOutbound.needed(q):
+		# XHTTP / VLESS encryption are not in sing-box 1.14: run via Xray-core.
+		var x := XrayOutbound.build_vless(u.host, u.port, uuid, q)
+		if not x.ok:
+			return ParserCommon.fail(x.error)
+		var xp := ProfileModel.create("vless", x.outbound, u.fragment.strip_edges())
+		xp.server = u.host
+		xp.port = u.port
+		xp.engine = "xray"
+		xp.uri = link.strip_edges()
+		xp.transport_label = x.label
+		warnings.append_array(x.warnings)
+		return ParserCommon.ok(xp, warnings)
+
 	var enc := str(q.get("encryption", "none")).strip_edges().to_lower()
 	if enc not in ["", "none"]:
 		return ParserCommon.fail("VLESS encryption \"%s\" is not supported by sing-box (only \"none\")" % enc)

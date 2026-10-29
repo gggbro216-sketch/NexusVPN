@@ -207,3 +207,22 @@ func test_cancel_while_waiting_for_permission() -> void:
 	await _tree.create_timer(0.4).timeout
 	eq(SingBoxManager.state, VpnState.State.DISCONNECTED)
 	check(not _fake.calls.has("start"), "cancelled flow must not start the core")
+
+
+func test_xray_profile_passes_xray_config() -> void:
+	await _fresh()
+	var r := Profiles.import_text("vless://%s@x.example.com:443?type=xhttp&security=tls&path=/x#XH" % UUID, "manual")
+	if not ok_result(r):
+		return
+	var xid: String = r.added[0]
+	var res: Dictionary = await SingBoxManager.start_vpn(xid)
+	ok_result(res)
+	check(_fake.calls.has("check_xray"), "Xray config validated before start")
+	var j := JsonUtil.parse(_fake.last_xray_json)
+	check(j.ok and j.data.has("inbounds"), "Xray config handed to the backend")
+	await SingBoxManager.stop_vpn()
+	await _fresh()
+	await SingBoxManager.start_vpn(_pid)
+	eq(_fake.last_xray_json, "", "sing-box profiles start without Xray")
+	await SingBoxManager.stop_vpn()
+	Profiles.remove(xid)

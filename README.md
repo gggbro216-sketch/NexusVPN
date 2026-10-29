@@ -1,6 +1,6 @@
 # NEXUS VPN
 
-VPN-клиент для Android на **Godot Engine 4.7** (GDScript) с сетевым ядром **sing-box 1.14.4** (libbox), работающим внутри системного **Android VpnService**.
+VPN-клиент для Android на **Godot Engine 4.7** (GDScript) с сетевым ядром **sing-box 1.14.4** (libbox) и вторым ядром **Xray-core 26.10.21** для XHTTP и VLESS encryption, работающим внутри системного **Android VpnService**.
 
 > Статус: **частично готов** — см. раздел «Состояние проекта». Код собран в APK, конфигурации проверены настоящим ядром sing-box, протоколы проверены сквозными тестами на хосте, **но приложение ещё не запускалось на реальном Android-устройстве** (в среде разработки нет устройства и KVM для эмулятора).
 
@@ -72,7 +72,7 @@ tools/build_apk.sh debug            # build/NexusVPN-debug.apk
 ## Известные ограничения
 
 - **Нет проверки на реальном устройстве** (см. выше).
-- **XHTTP/SplitHTTP, mKCP, VLESS encryption (ML-KEM)** — не реализованы в sing-box 1.14, такие ссылки отклоняются с объяснением.
+- **XHTTP и VLESS encryption** работают через второе ядро Xray-core (цепочка sing-box → Xray); **mKCP** не поддерживается.
 - **NaiveProxy, Tailscale, OpenVPN, OpenConnect** — есть в sing-box, но не включены в эту сборку libbox (размер). Включаются тегами в `tools/build_libbox.sh`.
 - **Kill Switch** — средствами приложения невозможен; используется системная «Постоянная VPN» + «Блокировать соединения без VPN» (кнопка в настройках «Подключение»).
 - **Clash/Mihomo YAML и Xray JSON** подписки распознаются, но не импортируются (сообщение об ошибке).
@@ -89,4 +89,4 @@ tools/build_apk.sh debug            # build/NexusVPN-debug.apk
 5. Локализация, виджет/быстрые настройки (Quick Settings tile).
 
 ## Лицензия
-GPL-3.0-or-later (см. [LICENSE](LICENSE)) — приложение линкуется с libbox (sing-box, GPL-3.0-or-later). Сторонние компоненты: Godot Engine (MIT), ZXing (Apache-2.0), Material Design Icons (Apache-2.0), Google ML Kit code scanner (условия Google APIs). Название и дизайн не связаны с Happ, NekoBox, Hiddify.
+GPL-3.0-or-later (см. [LICENSE](LICENSE)) — приложение линкуется с libbox (sing-box, GPL-3.0-or-later). Сторонние компоненты: Xray-core (MPL-2.0), Godot Engine (MIT), ZXing (Apache-2.0), Material Design Icons (Apache-2.0), Google ML Kit code scanner (условия Google APIs). Название и дизайн не связаны с Happ, NekoBox, Hiddify.

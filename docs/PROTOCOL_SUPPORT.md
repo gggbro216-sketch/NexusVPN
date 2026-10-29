@@ -1,5 +1,7 @@
 # Поддержка протоколов
 
+Профили, которым нужен Xray (XHTTP, VLESS encryption), автоматически запускаются через цепочку sing-box → Xray (см. SING_BOX_INTEGRATION.md, раздел Xray); в списке они помечены «(Xray)». Для Xray-профилей с TLS: `allowInsecure` в Xray 26 удалён — вместо него поддерживаются `pcs` (закрепление SHA-256 сертификата) и `vcn`; без `pcs` сертификат проверяется.
+
 Поддержка определяется возможностями сборки sing-box 1.14.4 (теги в `tools/build_libbox.sh`). «E2E» — передача трафика проверена тестом `tests/test_e2e_proxy.gd` с настоящим сервером sing-box на хосте; «check» — конфигурация принимается `sing-box check`.
 
 | Протокол | Импорт | Проверка | Примечания |
@@ -12,7 +14,8 @@
 | VLESS + HTTPUpgrade | `type=httpupgrade` | E2E | `path`, `host` |
 | VLESS + HTTP/2 | `type=http`/`h2` | check | |
 | VLESS + QUIC | `type=quic` | check | только `quicSecurity=none` |
-| VLESS + XHTTP/SplitHTTP | — | — | **не реализовано в sing-box 1.14** → понятная ошибка |
+| VLESS + XHTTP/SplitHTTP | `type=xhttp`/`splithttp` | E2E (без TLS, TLS+pcs, REALITY) | **через Xray-core 26.10.21** (второе ядро): `path`, `host`, `mode` (auto/packet-up/stream-up/stream-one), `extra` (JSON) |
+| VLESS encryption (ML-KEM-768) | `encryption=mlkem768x25519plus…` | E2E | через Xray-core |
 | VMess | `vmess://` (base64 JSON v2rayN и URI) | E2E (WS) | шифры auto/none/zero/aes-128-gcm/chacha20-poly1305/aes-128-ctr, alterId |
 | Trojan | `trojan://` | E2E (TLS) | TLS по умолчанию, транспорты как у VLESS |
 | Shadowsocks | `ss://` SIP002 и legacy | check | AEAD, stream (с предупреждением), плагины `obfs-local`, `v2ray-plugin` |

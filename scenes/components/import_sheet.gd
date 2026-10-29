@@ -101,7 +101,7 @@ static func _review_insecure(ids: Array) -> void:
 		"verify":
 			for p in insecure:
 				var c := ProfileModel.from_dict(p.to_dict())
-				c.outbound.tls.erase("insecure")
+				c.enable_tls_verification()
 				Profiles.update_profile(c)
 			Nav.toast("Проверка сертификата включена. Если сервер использует самоподписанный сертификат, подключение не пройдёт.", "info")
 		"remove":
