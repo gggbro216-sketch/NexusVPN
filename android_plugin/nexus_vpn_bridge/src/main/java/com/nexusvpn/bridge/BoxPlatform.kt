@@ -48,9 +48,9 @@ class BoxPlatform(private val context: Context) : PlatformInterface {
         return service.openTun(options)
     }
 
-    // null => sing-box uses its built-in "local" resolver with the DNS servers
-    // reported by getInterfaces().
-    override fun localDNSTransport(): LocalDNSTransport? = null
+    // System resolver of the underlying network; sing-box's built-in fallback
+    // reads /etc/resolv.conf, which does not work on Android.
+    override fun localDNSTransport(): LocalDNSTransport = LocalResolver
 
     override fun findConnectionOwner(
         ipProtocol: Int,

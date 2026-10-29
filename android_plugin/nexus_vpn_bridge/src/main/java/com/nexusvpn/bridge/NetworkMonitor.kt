@@ -68,6 +68,13 @@ object NetworkMonitor {
         }
     }
 
+    /** Waits up to [timeoutMs] for the first underlying network (callbacks are asynchronous). */
+    fun awaitNetwork(timeoutMs: Long): Network? {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (currentNetwork == null && System.currentTimeMillis() < deadline) Thread.sleep(50)
+        return currentNetwork
+    }
+
     fun setCoreListener(listener: InterfaceUpdateListener?) {
         coreListener = listener
         if (listener != null) handler?.post { pushToCore(currentNetwork) }

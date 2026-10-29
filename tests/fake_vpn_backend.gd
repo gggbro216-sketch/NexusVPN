@@ -56,6 +56,8 @@ func start(_json: String, profile_id: String, profile_name: String) -> String:
 
 
 func _run_start() -> void:
+	# Like the real service: state updates arrive asynchronously after start().
+	await tree.create_timer(0.05).timeout
 	_set_core(VpnState.Core.STARTING, "")
 	await tree.create_timer(0.1).timeout
 	if core_fail_message != "":

@@ -245,6 +245,10 @@ func _connect_flow(profile: ProfileModel, is_reconnect: bool) -> Dictionary:
 			return _fail(op, "разрешение на VPN не выдано")
 
 	_set_state(VpnState.State.RECONNECTING if is_reconnect else VpnState.State.CONNECTING, "Запуск ядра sing-box")
+	# The native state arrives asynchronously; until then the core is starting.
+	# (Without this the previous STOPPED state ended the wait immediately.)
+	_core_state = VpnState.Core.STARTING
+	_core_message = ""
 	var err := backend.start(json, profile.id, profile.name)
 	if err != "":
 		return _fail(op, err)
@@ -284,6 +288,9 @@ func _connect_flow(profile: ProfileModel, is_reconnect: bool) -> Dictionary:
 
 func _fail(op: int, message: String) -> Dictionary:
 	if op == _op:
+		if _core_state != VpnState.Core.STOPPED:
+			# Never leave a running core behind an error state.
+			backend.stop()
 		last_error = message
 		Log.error("vpn", message)
 		_finish_session(message)

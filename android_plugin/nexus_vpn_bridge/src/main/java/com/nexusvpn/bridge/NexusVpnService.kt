@@ -106,6 +106,9 @@ class NexusVpnService : VpnService() {
             val config = try { cfg.readText() } catch (e: Exception) { "" }
             var err = if (config.isEmpty()) "configuration file is unreadable" else ""
             if (err.isEmpty()) {
+                // Let the network callback deliver the underlying network first,
+                // otherwise the core starts with "missing default interface".
+                NetworkMonitor.awaitNetwork(3000)
                 try {
                     BoxCore.startServer(config, OverrideOptions())
                 } catch (e: Exception) {
