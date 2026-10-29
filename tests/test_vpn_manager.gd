@@ -194,3 +194,16 @@ func test_no_profile() -> void:
 	var r: Dictionary = await SingBoxManager.start_vpn()
 	err_result(r, "сервер")
 	Profiles.set_active(_pid)
+
+
+func test_cancel_while_waiting_for_permission() -> void:
+	await _fresh()
+	_fake.permission = false
+	_fake.granted_on_request = true
+	(func() -> void: await SingBoxManager.start_vpn()).call()
+	await _tree.process_frame
+	eq(SingBoxManager.state, VpnState.State.REQUESTING_PERMISSION)
+	await SingBoxManager.stop_vpn()
+	await _tree.create_timer(0.4).timeout
+	eq(SingBoxManager.state, VpnState.State.DISCONNECTED)
+	check(not _fake.calls.has("start"), "cancelled flow must not start the core")

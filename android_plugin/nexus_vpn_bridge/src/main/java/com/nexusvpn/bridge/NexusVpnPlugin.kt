@@ -66,6 +66,8 @@ class NexusVpnPlugin(godot: Godot) : GodotPlugin(godot), CoreClient.Listener {
     )
 
     private var receiverRegistered = false
+    /** A start intent was sent and the service has not yet reported STARTED/STOPPED. */
+    @Volatile private var startPending = false
 
     /** State broadcasts from the :vpn process. */
     private val stateReceiver = object : BroadcastReceiver() {
@@ -73,6 +75,7 @@ class NexusVpnPlugin(godot: Godot) : GodotPlugin(godot), CoreClient.Listener {
             val json = intent.getStringExtra("json") ?: return
             val obj = runCatching { JSONObject(json) }.getOrNull() ?: return
             val state = obj.optInt("state")
+            if (state == BoxCore.STARTED || state == BoxCore.STOPPED) startPending = false
             when (state) {
                 BoxCore.STARTED -> BoxCore.executor.execute { CoreClient.connect() }
                 BoxCore.STOPPED -> BoxCore.executor.execute { CoreClient.disconnect() }
@@ -196,6 +199,7 @@ class NexusVpnPlugin(godot: Godot) : GodotPlugin(godot), CoreClient.Listener {
                 .setAction(NexusVpnService.ACTION_START)
                 .putExtra(NexusVpnService.EXTRA_PROFILE_ID, profileId)
                 .putExtra(NexusVpnService.EXTRA_PROFILE_NAME, profileName)
+            startPending = true
             if (Build.VERSION.SDK_INT >= 26) act.startForegroundService(intent) else act.startService(intent)
             ""
         } catch (e: Exception) {
@@ -207,7 +211,7 @@ class NexusVpnPlugin(godot: Godot) : GodotPlugin(godot), CoreClient.Listener {
     @UsedByGodot
     fun stopVpn() {
         val act = activity ?: return
-        if (CoreState.read(act).optInt("state") == BoxCore.STOPPED) {
+        if (!startPending && CoreState.read(act).optInt("state") == BoxCore.STOPPED) {
             // Nothing is running (e.g. the service process died): report it.
             emit("core_state", BoxCore.STOPPED, "")
             return

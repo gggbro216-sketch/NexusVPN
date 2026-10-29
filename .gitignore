@@ -9,12 +9,15 @@ build/
 *.apk
 *.aab
 *.idsig
-android/.gradle/
+# Godot Android build template (installed by the editor / --install-android-build-template)
 android/build/
-android/local.properties
-android/nexus_vpn_bridge/build/
-android/nexus_vpn_bridge/libs/
-android/build_template/
+android/.build_version
+# Plugin Gradle project outputs
+android_plugin/.gradle/
+android_plugin/build/
+android_plugin/local.properties
+android_plugin/nexus_vpn_bridge/build/
+android_plugin/nexus_vpn_bridge/libs/
 
 # Keystores
 *.keystore

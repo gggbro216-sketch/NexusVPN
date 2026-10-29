@@ -21,6 +21,7 @@ TAGS="with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,badlinkname,
 SRC="$ROOT/build/sing-box-src"
 OUT="$ROOT/build/libbox"
 mkdir -p "$OUT"
+touch "$ROOT/build/.gdignore"   # keep Godot from scanning build outputs
 
 export ANDROID_HOME="${ANDROID_HOME:?set ANDROID_HOME}"
 export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/28.0.13004108}"

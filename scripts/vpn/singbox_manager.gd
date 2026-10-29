@@ -119,7 +119,10 @@ func start_vpn(profile_id: String = "") -> Dictionary:
 func stop_vpn() -> Dictionary:
 	_reconnect_timer.stop()
 	_waiting_for_network = false
-	if state in [VpnState.State.DISCONNECTED, VpnState.State.ERROR] and _core_state == VpnState.Core.STOPPED:
+	if _core_state == VpnState.Core.STOPPED and state != VpnState.State.CONNECTING:
+		# Nothing runs natively (idle, error, or still preparing / waiting for
+		# permission): cancel any pending connect flow.
+		_op += 1
 		_set_state(VpnState.State.DISCONNECTED, "")
 		return {"ok": true, "error": ""}
 	_op += 1
